@@ -1383,8 +1383,11 @@ SELECT ?university WHERE {
                     try {
                         const select = document.getElementById('kg_endpoint');
                         const formData = new FormData(form);
+                        const isCustomSubmission = select && select.value === 'custom';
+                        let customKgName = '';
+                        let customKgEndpoint = '';
 
-                        if (select && select.value === 'custom') {
+                        if (isCustomSubmission) {
                             const customName = document.getElementById('custom_name').value;
                             const customDescription = document.getElementById('custom_description').value;
                             const customEndpoint = document.getElementById('custom_endpoint').value;
@@ -1396,6 +1399,8 @@ SELECT ?university WHERE {
                             formData.set('kg_description', customDescription);
                             formData.set('kg_about_page', customAboutPage);
                             formData.set('domains', customDomains);
+                            customKgName = customName;
+                            customKgEndpoint = customEndpoint;
 
                         }
 
@@ -1420,6 +1425,9 @@ SELECT ?university WHERE {
                         
                         // If successful, optionally clear the form
                         if (result.status === 'success') {
+                            if (isCustomSubmission && customKgName && customKgEndpoint) {
+                                triggerGenerateKgData(customKgName, customKgEndpoint);
+                            }
                             // Capture possible custom endpoint details before resetting
                             const kgName = formData.get('kg_name');
                             const kgDescription = formData.get('kg_description');
@@ -1557,6 +1565,15 @@ SELECT ?university WHERE {
                 });
             }
         });
+
+        function triggerGenerateKgData(kgName, kgEndpointUrl) {
+            const url = `/generate_kg_data?kg_name=${encodeURIComponent(kgName)}&kg_endpoint_url=${encodeURIComponent(kgEndpointUrl)}`;
+            try {
+                fetch(url, { method: 'POST' });
+            } catch (error) {
+                // Fire-and-forget; ignore failures.
+            }
+        }
 
 
         // Endpoint validation functionality

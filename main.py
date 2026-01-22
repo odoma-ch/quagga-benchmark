@@ -2,6 +2,7 @@ import io
 import os
 import logging
 import requests
+import httpx
 import secrets
 import hashlib
 import base64
@@ -34,6 +35,11 @@ logging.getLogger().setLevel(logging.INFO)
 templates = Jinja2Templates(directory="templates")
 
 BASE_URI = "http://example.org/question-kg-linker/"
+EXYGEN_BASE_URL = (
+    "https://exygen-api-route-graphia-app1-staging.apps.bst2.paas.psnc.pl/"
+)
+EXYGEN_KG_METADATA_URL = f"{EXYGEN_BASE_URL}get_kg_metadata"
+EXYGEN_GENERATE_KG_DATA_URL = f"{EXYGEN_BASE_URL}generate_kg_metadata"
 QKL = Namespace(BASE_URI)
 
 # for setting up oauth for github
@@ -116,7 +122,12 @@ async def read_root(request: Request):
         return RedirectResponse(url="/login")
     return templates.TemplateResponse(
         "contribute.html",
-        {"request": request, "user": user, "kg_metadata": kg_metadata, "current_month": current_month},
+        {
+            "request": request,
+            "user": user,
+            "kg_metadata": kg_metadata,
+            "current_month": current_month,
+        },
     )
 
 
@@ -457,7 +468,9 @@ async def validate_endpoint(
                     }
                 )
         else:
-            is_valid = helper_methods.check_sparql_endpoint(endpoint_url, set_timeout=True)
+            is_valid = helper_methods.check_sparql_endpoint(
+                endpoint_url, set_timeout=True
+            )
 
             if is_valid:
                 return JSONResponse(
@@ -522,7 +535,7 @@ async def validate_query(
                         "status": "success",
                         "message": "Query is syntactically correct",
                     },
-                    status_code=200
+                    status_code=200,
                 )
 
         # Check endpoint accessibility (relax this requirement given it will already be validated)
@@ -575,8 +588,10 @@ async def validate_query(
             )
             logging.warning(f"SPARQL query timed out: {e}")
             return JSONResponse(
-                {"status": "success", 
-                 "message": "Query saved successfully in the database but timed out."},
+                {
+                    "status": "success",
+                    "message": "Query saved successfully in the database but timed out.",
+                },
                 status_code=200,
             )
         except Exception as e:
@@ -673,7 +688,7 @@ async def browse_page(request: Request):
 
     # Check if user wants to filter by their contributions
     show_my_contributions = request.query_params.get("my_contributions") == "true"
-    
+
     # Get current month for footer
     current_month = datetime.now().strftime("%B")
 
@@ -697,6 +712,23 @@ async def browse_page(request: Request):
             for domain_code in kg_domains:
                 if domain_code in domain_counts:
                     domain_counts[domain_code] += 1
+
+    # Calculate submission stats for each KG
+    for endpoint_data in kg_list:
+        endpoint = endpoint_data["endpoint"]
+        submissions = database.get_submissions_by_kg(endpoint)
+
+        total_submissions = len(submissions)
+        query_pairs = sum(
+            1
+            for sub in submissions
+            if sub.get("sparql_query") and sub.get("sparql_query").strip()
+        )
+        questions_only = total_submissions - query_pairs
+
+        endpoint_data["total_submissions"] = total_submissions
+        endpoint_data["query_pairs"] = query_pairs
+        endpoint_data["questions_only"] = questions_only
 
     # The browse landing page now shows one card per knowledge graph.  We still pass an
     # empty ``submissions`` list so that template logic relying on the variable does not break.
@@ -740,6 +772,66 @@ async def browse_submissions_for_kg(request: Request, kg_endpoint: str):
             "current_month": current_month,
         },
     )
+
+
+@app.get("/get_kg_metadata")
+async def get_kg_metadata(kg_name: str, kg_endpoint_url: str):
+    if not kg_name or not kg_endpoint_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="kg_name and kg_endpoint_url are required.",
+        )
+
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
+            upstream = await client.get(
+                EXYGEN_KG_METADATA_URL,
+                params={"kg_name": kg_name, "kg_endpoint_url": kg_endpoint_url},
+            )
+    except httpx.RequestError as exc:
+        logging.error(f"KG metadata upstream request failed: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to reach metadata service.",
+        )
+
+    if upstream.status_code != status.HTTP_200_OK:
+        return Response(status_code=upstream.status_code)
+
+    try:
+        payload = upstream.json()
+    except ValueError:
+        logging.error("KG metadata upstream returned non-JSON payload.")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Metadata service returned invalid JSON.",
+        )
+
+    return JSONResponse(content=payload, status_code=status.HTTP_200_OK)
+
+
+@app.post("/generate_kg_data", status_code=status.HTTP_204_NO_CONTENT)
+async def generate_kg_data(kg_name: str, kg_endpoint_url: str):
+    if not kg_name or not kg_endpoint_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="kg_name and kg_endpoint_url are required.",
+        )
+
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
+            await client.post(
+                EXYGEN_GENERATE_KG_DATA_URL,
+                json={"kg_name": kg_name, "kg_endpoint_url": kg_endpoint_url},
+            )
+    except httpx.RequestError as exc:
+        logging.warning(f"KG generate data upstream request failed: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to reach generate data service.",
+        )
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.get("/list")
@@ -904,4 +996,6 @@ async def faq_page(request: Request):
     # Get current user (optional for public access)
     user = request.session.get("user")
     current_month = datetime.now().strftime("%B")
-    return templates.TemplateResponse("faq.html", {"request": request, "user": user, "current_month": current_month})
+    return templates.TemplateResponse(
+        "faq.html", {"request": request, "user": user, "current_month": current_month}
+    )
