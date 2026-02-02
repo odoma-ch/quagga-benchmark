@@ -1193,7 +1193,7 @@
                 </div>
                 <div style="margin-bottom: 15px;">
                     <div class="toggle-container" style="justify-content: flex-start;">
-                        <span class="toggle-label" style="font-size: 0.85rem;">Show KGs which need love (less than 1 pair)</span>
+                        <span class="toggle-label" style="font-size: 0.85rem;">Show KGs which need love (less than 10 pairs)</span>
                         <div class="toggle-switch" id="pairsToggle" onclick="togglePairsFilter()">
                             <div class="toggle-slider"></div>
                         </div>
@@ -1231,11 +1231,19 @@
                                             View Submissions
                                         </a>
                                         <span style="background-color: var(--light-gray); color: var(--dark-gray); padding: 6px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
-                                                <polyline points="14 2 14 8 20 8"></polyline>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 50 50" fill="currentColor">
+                                                <path d="M42.651,19.995h-14.09v-8.093c0-0.965-0.785-1.75-1.75-1.75H7.114c-0.965,0-1.75,0.785-1.75,1.75v12.325
+                                                c0,0.965,0.785,1.75,1.75,1.75H9.23l4.824,3.883c0.118,0.096,0.262,0.145,0.408,0.145c0.095,0,0.191-0.021,0.281-0.064
+                                                c0.226-0.107,0.369-0.336,0.369-0.586v-3.377h6.327v7.858c0,1.094,0.89,1.984,1.983,1.984h10.333v3.377
+                                                c0,0.25,0.144,0.479,0.369,0.586c0.089,0.043,0.186,0.064,0.281,0.064c0.146,0,0.29-0.049,0.408-0.145l4.824-3.883h3.016
+                                                c1.094,0,1.984-0.891,1.984-1.984V21.979C44.635,20.886,43.745,19.995,42.651,19.995z M14.462,24.677c-0.359,0-0.65,0.291-0.65,0.65
+                                                v2.67l-3.945-3.176c-0.116-0.094-0.259-0.145-0.408-0.145H7.114c-0.248,0-0.45-0.201-0.45-0.449V11.902
+                                                c0-0.248,0.202-0.449,0.45-0.449h19.698c0.248,0,0.45,0.201,0.45,0.449v12.325c0,0.248-0.202,0.449-0.45,0.449H14.462z
+                                                 M43.335,33.836c0,0.377-0.307,0.684-0.684,0.684h-3.245c-0.148,0-0.292,0.051-0.408,0.145l-3.945,3.176v-2.67
+                                                c0-0.359-0.291-0.65-0.65-0.65H23.422c-0.377,0-0.684-0.307-0.684-0.684v-7.858h4.074c0.965,0,1.75-0.785,1.75-1.75v-2.932h14.09
+                                                c0.377,0,0.684,0.307,0.684,0.684V33.836z"/>
                                             </svg>
-                                            {{ kg.query_pairs }} pair{{ 's' if kg.query_pairs != 1 else '' }}
+                                            {{ kg.query_pairs }} question-query pair{{ 's' if kg.query_pairs != 1 else '' }}
                                         </span>
                                     </div>
                                 </div>
