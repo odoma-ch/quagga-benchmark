@@ -161,7 +161,11 @@ def check_sparql_endpoint(
 
     # If SPARQL formats fail, try treating as HTTP endpoint
     try:
-        response = requests.get(endpoint_uri, timeout=10, allow_redirects=True)
+        params = {
+            "query": query,
+            "format": "text/html"
+        }
+        response = requests.get(endpoint_uri, timeout=60, params=params)
         if 200 <= response.status_code < 300:
             logging.info(
                 f"SPARQL endpoint {endpoint_uri} is accessible as HTTP endpoint"
