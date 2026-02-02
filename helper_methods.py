@@ -163,7 +163,7 @@ def check_sparql_endpoint(
     try:
         params = {
             "query": query,
-            "format": "text/html"
+            "format": "application/sparql-results+json"
         }
         response = requests.get(endpoint_uri, timeout=60, params=params)
         if 200 <= response.status_code < 300:
