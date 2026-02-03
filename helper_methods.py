@@ -18,13 +18,13 @@ def validate_url(url: str) -> tuple[bool, str]:
 
     Args:
         url (str): The URL to validate
-        
+
     Returns:
         tuple[bool, str]: (is_valid, error_message)
     """
     if not url or not url.strip():
         return False, "URL cannot be empty"
-    
+
     url = url.strip()
     try:
         parsed = urlparse(url)
@@ -41,7 +41,7 @@ def validate_url(url: str) -> tuple[bool, str]:
         error_msg = f"Error parsing URL: {str(e)}"
         logging.error(f"Error parsing URL {url}: {e}")
         return False, error_msg
-    
+
     try:
         response = requests.head(url, timeout=10, allow_redirects=True)
         if response.status_code == 405:
@@ -98,16 +98,22 @@ def check_sparql_endpoint_deprecated(endpoint_uri: str) -> bool:
 
         results = graph.query(test_query)
         list(results)
-        
+
         logging.info(f"SPARQL endpoint {endpoint_uri} is accessible and working")
         return True
-        
+
     except Exception as e:
         logging.error(f"Cannot access SPARQL endpoint {endpoint_uri}: {e}")
         return False
 
 
-def check_sparql_endpoint(endpoint_uri: str, query: str = "SELECT * WHERE { ?s ?p ?o } LIMIT 1", return_result: bool = False, set_timeout: bool = False, timeout: int = 15) -> bool|tuple[bool, any]:
+def check_sparql_endpoint(
+    endpoint_uri: str,
+    query: str = "SELECT * WHERE { ?s ?p ?o } LIMIT 1",
+    return_result: bool = False,
+    set_timeout: bool = False,
+    timeout: int = 15,
+) -> bool | tuple[bool, any]:
     """
     Check if the SPARQL endpoint is accessible using SPARQLWrapper with a return format of JSON, XML, CSV, JSON-LD.
 
@@ -130,22 +136,47 @@ def check_sparql_endpoint(endpoint_uri: str, query: str = "SELECT * WHERE { ?s ?
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always")
                 response = sparql.query().convert()
-                
-                for warning in w:
-                    if "unknown response content type 'text/html'" in str(warning.message):
-                        raise Exception(f"SPARQL endpoint {endpoint_uri} returned HTML instead of {return_format_name}")
 
-            logging.info(f"SPARQL endpoint {endpoint_uri} is accessible and working with {return_format_name} return format")
+                for warning in w:
+                    if "unknown response content type 'text/html'" in str(
+                        warning.message
+                    ):
+                        raise Exception(
+                            f"SPARQL endpoint {endpoint_uri} returned HTML instead of {return_format_name}"
+                        )
+
+            logging.info(
+                f"SPARQL endpoint {endpoint_uri} is accessible and working with {return_format_name} return format"
+            )
             return (True, response) if return_result else True
 
         except TimeoutError as e:
             logging.warning(f"SPARQL endpoint {endpoint_uri} is timing out")
             return (True, "") if return_result else True
         except Exception as e:
-            logging.error(f"Cannot access SPARQL endpoint {endpoint_uri} with {return_format_name} return format: {e}")
+            logging.error(
+                f"Cannot access SPARQL endpoint {endpoint_uri} with {return_format_name} return format: {e}"
+            )
             continue
 
-    logging.error(f"Cannot access SPARQL endpoint {endpoint_uri} with any return format")
+    # If SPARQL formats fail, try treating as HTTP endpoint
+    try:
+        params = {
+            "query": query,
+            "format": "application/sparql-results+json"
+        }
+        response = requests.get(endpoint_uri, timeout=60, params=params)
+        if 200 <= response.status_code < 300:
+            logging.info(
+                f"SPARQL endpoint {endpoint_uri} is accessible as HTTP endpoint"
+            )
+            return (True, "") if return_result else True
+    except Exception as e:
+        logging.error(f"Cannot access endpoint {endpoint_uri} as HTTP: {e}")
+
+    logging.error(
+        f"Cannot access SPARQL endpoint {endpoint_uri} with any return format or as HTTP"
+    )
     return False
 
 
@@ -153,10 +184,12 @@ def escape_string(text: str) -> str:
     """Escape special characters in strings for Turtle format"""
     if not text:
         return ""
-    return text.replace('"', '\\"').replace('\\', '\\\\').replace('\n', '\\n')
+    return text.replace('"', '\\"').replace("\\", "\\\\").replace("\n", "\\n")
 
 
-def execute_sparql_query(query: str, endpoint_uri: str, limit: int = 20, timeout: int = 120):
+def execute_sparql_query(
+    query: str, endpoint_uri: str, limit: int = 20, timeout: int = 120
+):
     """Run SPARQL query against endpoint and return list of bindings as dictionaries.
 
     Args:
@@ -167,14 +200,14 @@ def execute_sparql_query(query: str, endpoint_uri: str, limit: int = 20, timeout
 
     Returns:
         List[dict]: Query results where each dict maps variable names to their string values.
-        
+
     Raises:
         TimeoutError: If the query takes longer than the specified timeout.
     """
     result = None
     error = None
     completed = threading.Event()
-    
+
     def execute_query():
         nonlocal result, error
         try:
@@ -187,15 +220,20 @@ def execute_sparql_query(query: str, endpoint_uri: str, limit: int = 20, timeout
 
             # Use check_sparql_endpoint directly to execute the query
             endpoint_check = check_sparql_endpoint(
-                endpoint_uri, query_to_run, return_result=True, set_timeout=True, timeout=timeout)
-            
+                endpoint_uri,
+                query_to_run,
+                return_result=True,
+                set_timeout=True,
+                timeout=timeout,
+            )
+
             if not endpoint_check or not endpoint_check[0]:
                 error = Exception(f"Failed to query SPARQL endpoint {endpoint_uri}")
                 return
-            
+
             response = endpoint_check[1]
             formatted_results = []
-            
+
             if isinstance(response, dict):
                 if "results" in response and "bindings" in response["results"]:
                     # process SPARQL response format
@@ -218,7 +256,7 @@ def execute_sparql_query(query: str, endpoint_uri: str, limit: int = 20, timeout
                 formatted_results = [{"result": response}]
             else:
                 formatted_results = [{"result": str(response)}]
-            
+
             result = formatted_results
         except Exception as e:
             error = e
@@ -231,8 +269,8 @@ def execute_sparql_query(query: str, endpoint_uri: str, limit: int = 20, timeout
 
     if not completed.wait(timeout=timeout):
         raise TimeoutError(f"SPARQL query execution timed out after {timeout} seconds")
-    
+
     if error:
         raise error
-    
+
     return result

@@ -1106,6 +1106,22 @@
                                 <path d="M7 7h10v10"></path>
                             </svg>
                         </a>
+                        <br>
+                        <span style="display: inline-flex; align-items: center; gap: 8px;">
+                        <a href="#" data-kg-name="{{ kg_name }}" data-kg-endpoint="{{ endpoint }}" onclick="return downloadKgMetadata(this);" style="display: inline-flex; align-items: center; color: var(--primary); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s ease;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Download metadata
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 4px;">
+                                <path d="M7 17L17 7"></path>
+                                <path d="M7 7h10v10"></path>
+                            </svg>
+                        </a>
+                        <span id="kg-metadata-status" style="font-size: 0.9rem; color: #d14343;"></span>
+                        </span>
                         
                     </div>
 
@@ -1128,19 +1144,6 @@
             {% endif %}
             
             {% if submissions|length > 0 %}
-            {% if user %}
-            <div class="filter-controls">
-                <div class="filter-info">
-                    <span id="showing-count">{{ submissions|length }}</span> of {{ submissions|length }} submissions
-                </div>
-                <div class="toggle-container">
-                    <span class="toggle-label">Show only my submissions</span>
-                    <div class="toggle-switch" id="userToggle" onclick="toggleUserFilter()">
-                        <div class="toggle-slider"></div>
-                    </div>
-                </div>
-            </div>
-            {% else %}
             <div class="filter-controls">
                 <div class="filter-info">
                     <span id="showing-count">{{ submissions|length }}</span> of {{ submissions|length }} submissions
@@ -1149,6 +1152,15 @@
                     <button class="filter-btn active" onclick="filterByType('all')" id="filter-all">All</button>
                     <button class="filter-btn" onclick="filterByType('questions-only')" id="filter-questions">Questions Only</button>
                     <button class="filter-btn" onclick="filterByType('with-sparql')" id="filter-sparql">With SPARQL</button>
+                </div>
+            </div>
+            {% if user %}
+            <div class="filter-controls">
+                <div class="toggle-container">
+                    <span class="toggle-label">Show only my submissions</span>
+                    <div class="toggle-switch" id="userToggle" onclick="toggleUserFilter()">
+                        <div class="toggle-slider"></div>
+                    </div>
                 </div>
             </div>
             {% endif %}
@@ -1179,6 +1191,14 @@
                         <button class="filter-action-btn" onclick="clearAllDomains()" style="background: none; color: #f26558; border: none; cursor: pointer; font-size: 0.85rem; font-weight: 500; line-height: 1;">Reset</button>
                     </div>
                 </div>
+                <div style="margin-bottom: 15px;">
+                    <div class="toggle-container" style="justify-content: flex-start;">
+                        <span class="toggle-label" style="font-size: 0.85rem;">Show KGs which need love (less than 10 pairs)</span>
+                        <div class="toggle-switch" id="pairsToggle" onclick="togglePairsFilter()">
+                            <div class="toggle-slider"></div>
+                        </div>
+                    </div>
+                </div>
                 <div style="border-bottom: 2px solid #ddd; margin-bottom: 25px;"></div>
             </div>
 
@@ -1188,7 +1208,7 @@
                         {# Landing page: show one card per knowledge graph #}
                         {% if kg_list and kg_list|length > 0 %}
                             {% for kg in kg_list %}
-                                <div class="submission kg-card" data-domains="{{ kg.domains or '' }}" style="background-color: transparent; border: none; box-shadow: none; padding: 25px 0; margin-bottom: 0; border-bottom: 2px solid #ddd;">
+                                <div class="submission kg-card" data-domains="{{ kg.domains or '' }}" data-query-pairs="{{ kg.query_pairs or 0 }}" style="background-color: transparent; border: none; box-shadow: none; padding: 25px 0; margin-bottom: 0; border-bottom: 2px solid #ddd;">
                                     <h3 style="margin: 0 0 8px 0; font-size: 1.4rem; color: var(--dark-gray);">{{ kg.name }}</h3>
                                     {% if kg.domains %}
                                         {% set codes = kg.domains.split(',') %}
@@ -1203,13 +1223,28 @@
                                     {% if kg.description %}
                                         <div style="margin-bottom: 20px; font-size: 1.1rem; color: var(--dark-gray); line-height: 1.5;">{{ kg.description }}</div>
                                     {% endif %}
-                                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                                    <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
                                         {% if kg.about_page %}
                                         <a href="{{ kg.about_page }}" target="_blank" rel="noopener noreferrer" style="color: var(--primary); text-decoration: none; display: inline-flex; align-items: center;">About ↗</a>
                                         {% endif %}
                                         <a href="/browse/{{ kg.endpoint | urlencode }}" class="kg-view-btn" style="background: white; color: #f26558; padding: 8px 16px; border: 1px solid #f26558; border-radius: 20px; text-decoration: none; font-size: 0.9rem; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
                                             View Submissions
                                         </a>
+                                        <span style="background-color: var(--light-gray); color: var(--dark-gray); padding: 6px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 50 50" fill="currentColor">
+                                                <path d="M42.651,19.995h-14.09v-8.093c0-0.965-0.785-1.75-1.75-1.75H7.114c-0.965,0-1.75,0.785-1.75,1.75v12.325
+                                                c0,0.965,0.785,1.75,1.75,1.75H9.23l4.824,3.883c0.118,0.096,0.262,0.145,0.408,0.145c0.095,0,0.191-0.021,0.281-0.064
+                                                c0.226-0.107,0.369-0.336,0.369-0.586v-3.377h6.327v7.858c0,1.094,0.89,1.984,1.983,1.984h10.333v3.377
+                                                c0,0.25,0.144,0.479,0.369,0.586c0.089,0.043,0.186,0.064,0.281,0.064c0.146,0,0.29-0.049,0.408-0.145l4.824-3.883h3.016
+                                                c1.094,0,1.984-0.891,1.984-1.984V21.979C44.635,20.886,43.745,19.995,42.651,19.995z M14.462,24.677c-0.359,0-0.65,0.291-0.65,0.65
+                                                v2.67l-3.945-3.176c-0.116-0.094-0.259-0.145-0.408-0.145H7.114c-0.248,0-0.45-0.201-0.45-0.449V11.902
+                                                c0-0.248,0.202-0.449,0.45-0.449h19.698c0.248,0,0.45,0.201,0.45,0.449v12.325c0,0.248-0.202,0.449-0.45,0.449H14.462z
+                                                 M43.335,33.836c0,0.377-0.307,0.684-0.684,0.684h-3.245c-0.148,0-0.292,0.051-0.408,0.145l-3.945,3.176v-2.67
+                                                c0-0.359-0.291-0.65-0.65-0.65H23.422c-0.377,0-0.684-0.307-0.684-0.684v-7.858h4.074c0.965,0,1.75-0.785,1.75-1.75v-2.932h14.09
+                                                c0.377,0,0.684,0.307,0.684,0.684V33.836z"/>
+                                            </svg>
+                                            {{ kg.query_pairs }} question-query pair{{ 's' if kg.query_pairs != 1 else '' }}
+                                        </span>
                                     </div>
                                 </div>
                             {% endfor %}
@@ -1353,7 +1388,7 @@
                 <img src="/templates/assets/footer_logos.svg" alt="Odoma and Graphia logos" style="max-width: clamp(150px, 20vw, 280px); height: auto;" />
                 <div>
                     <p style="font-size: clamp(0.7rem, 1.8vw, 1rem); margin-bottom: clamp(4px, 1.2vw, 10px); line-height: 1.4; margin: 0;">Quagga has been developed by <a href="https://www.odoma.ch/" target="_blank" style="color: var(--primary); text-decoration: none;">Odoma ↗</a> for <a href="https://graphia-ssh.eu/" target="_blank" style="color: var(--primary); text-decoration: none;">Graphia ↗</a></p>
-                    <p style="font-size: clamp(0.7rem, 1.8vw, 1rem); line-height: 1.4; margin: 0;">Funded by the European Union (grant ID: <a href="https://cordis.europa.eu/project/id/101188018" target="_blank" style="color: var(--primary); text-decoration: none;">1O1188018 ↗</a>)</p>
+                    <p style="font-size: clamp(0.7rem, 1.8vw, 1rem); line-height: 1.4; margin: 0;">Funded by the European Union (grant ID: <a href="https://cordis.europa.eu/project/id/101188018" target="_blank" style="color: var(--primary); text-decoration: none;">101188018 ↗</a>)</p>
                 </div>
             </div>
             <div style="display: flex; flex-direction: column; gap: clamp(4px, 1.2vw, 10px); font-size: clamp(0.7rem, 1.8vw, 1rem); align-self: flex-start;">
@@ -1571,6 +1606,22 @@
             return false; // prevent the original <a> default
         }
 
+        // Pairs filter functionality
+        let showKGsWithLessThanOnePair = false;
+
+        function togglePairsFilter() {
+            const toggle = document.getElementById('pairsToggle');
+            showKGsWithLessThanOnePair = !showKGsWithLessThanOnePair;
+            
+            if (showKGsWithLessThanOnePair) {
+                toggle.classList.add('active');
+            } else {
+                toggle.classList.remove('active');
+            }
+            
+            applyAllFilters();
+        }
+
         // Domain filtering functionality
         function toggleDomainFilter(domainCode) {
             const button = document.getElementById(`domain-${domainCode}`);
@@ -1579,10 +1630,10 @@
                 return;
             }
             button.classList.toggle('active');
-            filterByDomain();
+            applyAllFilters();
         }
         
-        function filterByDomain() {
+        function applyAllFilters() {
             const pillButtons = document.querySelectorAll('.domain-pill-btn');
             const kgCards = document.querySelectorAll('.kg-card');
             const filterSummary = document.getElementById('filter-summary');
@@ -1603,19 +1654,23 @@
             
             kgCards.forEach(card => {
                 const cardDomains = card.getAttribute('data-domains');
+                const queryPairs = parseInt(card.getAttribute('data-query-pairs') || '0');
                 
-                // If no domains are selected, show all cards
-                if (selectedDomains.length === 0) {
-                    card.style.display = 'block';
-                    visibleCount++;
-                    return;
+                let shouldShow = true;
+                
+                // Apply pairs filter - show only KGs with less than 10 pair when toggle is active
+                if (showKGsWithLessThanOnePair && queryPairs >= 10) {
+                    shouldShow = false;
                 }
                 
-                // Check if card has any of the selected domains
-                let shouldShow = false;
-                if (cardDomains) {
-                    const cardDomainCodes = cardDomains.split(',').map(d => d.trim());
-                    shouldShow = selectedDomains.some(domain => cardDomainCodes.includes(domain));
+                // Apply domain filter
+                if (shouldShow && selectedDomains.length > 0) {
+                    if (cardDomains) {
+                        const cardDomainCodes = cardDomains.split(',').map(d => d.trim());
+                        shouldShow = selectedDomains.some(domain => cardDomainCodes.includes(domain));
+                    } else {
+                        shouldShow = false;
+                    }
                 }
                 
                 if (shouldShow) {
@@ -1629,12 +1684,17 @@
             
             // Update filter summary
             if (filterSummary) {
-                if (selectedDomains.length === 0) {
+                if (selectedDomains.length === 0 && !showKGsWithLessThanOnePair) {
                     filterSummary.textContent = `No filters applied - showing all KGs`;
                 } else {
                     filterSummary.textContent = `Showing ${visibleCount} KGs`;
                 }
             }
+        }
+        
+        // Legacy function for backwards compatibility
+        function filterByDomain() {
+            applyAllFilters();
         }
         
         function selectAllDomains() {
@@ -1645,7 +1705,7 @@
                     button.classList.add('active');
                 }
             });
-            filterByDomain();
+            applyAllFilters();
         }
         
         function clearAllDomains() {
@@ -1656,7 +1716,56 @@
                     button.classList.remove('active');
                 }
             });
-            filterByDomain();
+            applyAllFilters();
+        }
+
+        async function downloadKgMetadata(linkEl) {
+            if (!linkEl) {
+                return false;
+            }
+
+            const kgName = linkEl.getAttribute('data-kg-name') || '';
+            const kgEndpointUrl = linkEl.getAttribute('data-kg-endpoint') || '';
+            const url = `/get_kg_metadata?kg_name=${encodeURIComponent(kgName)}&kg_endpoint_url=${encodeURIComponent(kgEndpointUrl)}`;
+            const statusEl = document.getElementById('kg-metadata-status');
+            if (statusEl) {
+                statusEl.textContent = '';
+            }
+            if (window.kgMetadataStatusTimeout) {
+                clearTimeout(window.kgMetadataStatusTimeout);
+                window.kgMetadataStatusTimeout = null;
+            }
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    if (response.status === 404 && statusEl) {
+                        statusEl.textContent = 'Not Found';
+                        window.kgMetadataStatusTimeout = setTimeout(() => {
+                            statusEl.textContent = '';
+                            window.kgMetadataStatusTimeout = null;
+                        }, 12000);
+                    }
+                    return false;
+                }
+
+                const data = await response.json();
+                const safeName = (kgName || 'kg_metadata').replace(/[^a-z0-9_-]+/gi, '_');
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const objectUrl = URL.createObjectURL(blob);
+
+                const downloadLink = document.createElement('a');
+                downloadLink.href = objectUrl;
+                downloadLink.download = `${safeName}.json`;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                downloadLink.remove();
+                URL.revokeObjectURL(objectUrl);
+            } catch (error) {
+                return false;
+            }
+
+            return false;
         }
 
         // Mobile menu toggle functionality for browse page
