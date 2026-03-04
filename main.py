@@ -36,7 +36,7 @@ templates = Jinja2Templates(directory="templates")
 
 BASE_URI = "http://example.org/question-kg-linker/"
 EXYGEN_BASE_URL = (
-    "https://exygen-api-route-graphia-app1-staging.apps.bst2.paas.psnc.pl/"
+    "https://exygen.graphia-ssh.eu/"
 )
 EXYGEN_KG_METADATA_URL = f"{EXYGEN_BASE_URL}get_kg_metadata"
 EXYGEN_GENERATE_KG_DATA_URL = f"{EXYGEN_BASE_URL}generate_kg_metadata"
