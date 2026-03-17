@@ -810,6 +810,37 @@ async def get_kg_metadata(kg_name: str, kg_endpoint_url: str):
     return JSONResponse(content=payload, status_code=status.HTTP_200_OK)
 
 
+@app.get("/get_kg_info")
+async def get_kg_info(kg_name: str):
+    if not kg_name or not kg_name.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="kg_name is required.",
+        )
+
+    normalized_name = kg_name.strip().casefold()
+    kg_entries = database.get_all_kg_metadata()
+
+    kg_match = next(
+        (kg for kg in kg_entries if (kg.get("name") or "").strip().casefold() == normalized_name),
+        None,
+    )
+    if not kg_match:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Knowledge graph not found.",
+        )
+
+    return JSONResponse(
+        content={
+            "kg_name": kg_match.get("name"),
+            "description": kg_match.get("description"),
+            "endpoint_url": kg_match.get("endpoint"),
+        },
+        status_code=status.HTTP_200_OK,
+    )
+
+
 @app.post("/generate_kg_data", status_code=status.HTTP_204_NO_CONTENT)
 async def generate_kg_data(kg_name: str, kg_endpoint_url: str):
     if not kg_name or not kg_endpoint_url:
