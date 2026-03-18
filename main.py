@@ -18,6 +18,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi import FastAPI, Request, Form, Depends, Response, HTTPException, status
 from datetime import datetime
+from itsdangerous import URLSafeSerializer
 from concurrent.futures import TimeoutError
 
 import database
@@ -25,9 +26,10 @@ import data_models
 import helper_methods
 import const
 
-
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY"))
+
+signer = URLSafeSerializer(os.getenv("SESSION_SECRET_KEY"))
 
 app.mount("/templates", StaticFiles(directory="templates"), name="templates")
 
@@ -35,9 +37,7 @@ logging.getLogger().setLevel(logging.INFO)
 templates = Jinja2Templates(directory="templates")
 
 BASE_URI = "http://example.org/question-kg-linker/"
-EXYGEN_BASE_URL = (
-    "https://exygen.graphia-ssh.eu/"
-)
+EXYGEN_BASE_URL = "https://exygen.graphia-ssh.eu/"
 EXYGEN_KG_METADATA_URL = f"{EXYGEN_BASE_URL}get_kg_metadata"
 EXYGEN_GENERATE_KG_DATA_URL = f"{EXYGEN_BASE_URL}generate_kg_metadata"
 QKL = Namespace(BASE_URI)
@@ -681,6 +681,33 @@ async def modify_db_submission(
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
+@app.get("/agent")
+async def agent_page(user: dict = Depends(get_current_user)):
+    email = user["email"] if user.get("email") else user.get("login")
+    token = signer.dumps({"email": email, "name": email})
+    response = RedirectResponse(url="/chat", status_code=status.HTTP_302_FOUND)
+    response.set_cookie("owui_auth", token, domain=".graphia-ssh.eu", httponly=True)
+    return response
+
+
+@app.get("/auth-chat-ui/verify")
+async def verify(request: Request):
+    token = request.cookies.get("owui_auth")
+    if not token:
+        return Response(status_code=401)
+    try:
+        data = signer.loads(token)
+        return Response(
+            status_code=200,
+            headers={
+                "X-User-Email": data["email"],
+                "X-User-Name": data["name"],
+            },
+        )
+    except Exception:
+        return Response(status_code=401)
+
+
 @app.get("/browse")
 async def browse_page(request: Request):
     """Public browse page that lists all submissions from all KG endpoints."""
@@ -822,7 +849,11 @@ async def get_kg_info(kg_name: str):
     kg_entries = database.get_all_kg_metadata()
 
     kg_match = next(
-        (kg for kg in kg_entries if (kg.get("name") or "").strip().casefold() == normalized_name),
+        (
+            kg
+            for kg in kg_entries
+            if (kg.get("name") or "").strip().casefold() == normalized_name
+        ),
         None,
     )
     if not kg_match:
