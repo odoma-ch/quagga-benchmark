@@ -685,7 +685,7 @@ async def modify_db_submission(
 async def agent_page(user: dict = Depends(get_current_user)):
     email = user["email"] if user.get("email") else user.get("login")
     token = signer.dumps({"email": email, "name": email})
-    response = RedirectResponse(url="/chat", status_code=status.HTTP_302_FOUND)
+    response = RedirectResponse(url="/chat/", status_code=status.HTTP_302_FOUND)
     response.set_cookie("owui_auth", token, domain=".graphia-ssh.eu", httponly=True)
     return response
 
