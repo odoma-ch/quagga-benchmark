@@ -682,11 +682,26 @@ async def modify_db_submission(
 
 
 @app.get("/agent")
-async def agent_page(user: dict = Depends(get_current_user)):
-    email = user["email"] if user.get("email") else user.get("login")
+async def agent_page(request: Request):
+    user = request.session.get("user")
+    if not user:
+        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+
+    email = user.get("email") or user.get("login")
+    if not email:
+        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+
     token = signer.dumps({"email": email, "name": email})
     response = RedirectResponse(url="/chat/", status_code=status.HTTP_302_FOUND)
-    response.set_cookie("owui_auth", token, domain=".graphia-ssh.eu", httponly=True)
+    # todo: set the expiration time to some hour
+    response.set_cookie(
+        "owui_auth",
+        token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        path="/chat",
+    )
     return response
 
 
