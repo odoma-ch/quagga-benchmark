@@ -325,7 +325,9 @@ async def auth_orcid(request: Request):
 async def logout(request: Request):
     """Log out the user and redirect to login page with a success message."""
     request.session.pop("user", None)
-    return RedirectResponse(url="/login?logged_out=true")
+    response = RedirectResponse(url="/login?logged_out=true")
+    response.delete_cookie("owui_auth", path="/")
+    return response
 
 
 @app.post("/submit_query")
@@ -691,16 +693,34 @@ async def agent_page(request: Request):
     if not email:
         return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
 
+    CHAT_UI_HOST = "quagga-agent.graphia-ssh.eu"
+
     token = signer.dumps({"email": email, "name": email})
-    response = RedirectResponse(url="/chat/", status_code=status.HTTP_302_FOUND)
-    # todo: set the expiration time to some hour
+    return RedirectResponse(
+        url=f"https://{CHAT_UI_HOST}/auth/callback?token={token}",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@app.get("/auth-chat-ui/callback")
+async def auth_callback(request: Request):
+    """Called via NGINX proxy on the chat host to set owui_auth cookie on that domain."""
+    token = request.query_params.get("token")
+    if not token:
+        return Response(status_code=400)
+    try:
+        signer.loads(token)
+    except Exception:
+        return Response(status_code=401)
+
+    response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     response.set_cookie(
         "owui_auth",
         token,
         httponly=True,
         secure=True,
         samesite="lax",
-        path="/chat",
+        path="/",
     )
     return response
 
