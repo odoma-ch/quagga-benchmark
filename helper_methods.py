@@ -3,6 +3,7 @@ import warnings
 import requests
 import threading
 import time
+from typing import List
 from rdflib import Graph
 from urllib.parse import urlparse
 from rdflib.plugins.sparql import prepareQuery
@@ -132,6 +133,9 @@ def check_sparql_endpoint(
                 sparql.setTimeout(timeout)
             sparql.setReturnFormat(return_format)
             sparql.setQuery(query)
+            
+            # Force GET method to avoid POST requests that might return default format
+            sparql.setMethod('GET')
 
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always")
@@ -159,18 +163,23 @@ def check_sparql_endpoint(
             )
             continue
 
-    # If SPARQL formats fail, try treating as HTTP endpoint
+    # If SPARQL formats fail, try treating as HTTP endpoint with explicit content negotiation
     try:
         params = {
             "query": query,
             "format": "application/sparql-results+json"
         }
-        response = requests.get(endpoint_uri, timeout=60, params=params)
+        headers = {
+            "Accept": "application/sparql-results+json"
+        }
+        response = requests.get(endpoint_uri, timeout=timeout, params=params, headers=headers)
         if 200 <= response.status_code < 300:
-            logging.info(
-                f"SPARQL endpoint {endpoint_uri} is accessible as HTTP endpoint"
-            )
-            return (True, "") if return_result else True
+            if response.headers.get("content-type", "").startswith("application/sparql-results+json") or \
+               response.headers.get("content-type", "").startswith("application/json"):
+                logging.info(
+                    f"SPARQL endpoint {endpoint_uri} is accessible via HTTP with forced JSON content negotiation"
+                )
+                return (True, response.json()) if return_result else True
     except Exception as e:
         logging.error(f"Cannot access endpoint {endpoint_uri} as HTTP: {e}")
 
@@ -189,7 +198,7 @@ def escape_string(text: str) -> str:
 
 def execute_sparql_query(
     query: str, endpoint_uri: str, limit: int = 20, timeout: int = 120
-):
+) -> List[dict]:
     """Run SPARQL query against endpoint and return list of bindings as dictionaries.
 
     Args:
@@ -218,7 +227,33 @@ def execute_sparql_query(
             else:
                 query_to_run = query
 
-            # Use check_sparql_endpoint directly to execute the query
+            # Try direct SPARQLWrapper execution first with improved content negotiation
+            try:
+                sparql = SPARQLWrapper(endpoint_uri)
+                sparql.setMethod('GET')
+                sparql.setReturnFormat(JSON)
+                sparql.setTimeout(timeout)
+                sparql.setQuery(query_to_run)
+                
+                response = sparql.query().convert()
+                
+                if "results" in response and "bindings" in response["results"]:
+                    formatted_results = []
+                    for binding in response["results"]["bindings"][:limit]:
+                        formatted_row = {}
+                        for var, val in binding.items():
+                            if isinstance(val, dict) and "value" in val:
+                                formatted_row[var] = str(val["value"])
+                            else:
+                                formatted_row[var] = str(val)
+                        formatted_results.append(formatted_row)
+                    result = formatted_results
+                    completed.set()
+                    return
+            except Exception as e:
+                logging.warning(f"Direct SPARQL query execution failed: {e}")
+
+            # Fallback to check_sparql_endpoint
             endpoint_check = check_sparql_endpoint(
                 endpoint_uri,
                 query_to_run,
