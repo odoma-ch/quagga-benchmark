@@ -13,12 +13,15 @@ from SPARQLWrapper import SPARQLWrapper, JSON, XML, CSV, JSONLD
 logging.getLogger().setLevel(logging.INFO)
 
 
-def validate_url(url: str) -> tuple[bool, str]:
+def validate_url(url: str, format_only: bool = False) -> tuple[bool, str]:
     """
     Validate if the URL is valid and return detailed error message.
 
     Args:
         url (str): The URL to validate
+        format_only (bool): If True, skip the live HTTP reachability check and
+            only validate the URL format. Use this for dump URLs whose host may
+            block cloud-provider IPs.
 
     Returns:
         tuple[bool, str]: (is_valid, error_message)
@@ -42,6 +45,9 @@ def validate_url(url: str) -> tuple[bool, str]:
         error_msg = f"Error parsing URL: {str(e)}"
         logging.error(f"Error parsing URL {url}: {e}")
         return False, error_msg
+
+    if format_only:
+        return True, ""
 
     try:
         response = requests.head(url, timeout=10, allow_redirects=True)

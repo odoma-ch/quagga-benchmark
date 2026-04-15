@@ -346,10 +346,18 @@ async def submit_query(
 ):
     """Handles submission of NL question + optional SPARQL query + KG endpoint."""
     try:
+        # Check if endpoint exists in database to get is_dump status
+        kg_metadata = database.get_all_kg_metadata(for_one=True, endpoint=kg_endpoint)
+        endpoint_is_dump = kg_metadata.get("is_dump") if kg_metadata else is_dump_url
+        logging.info(
+            f"Submit query - Endpoint: {kg_endpoint}, is_dump from DB: {kg_metadata.get('is_dump') if kg_metadata else 'N/A'}, using: {endpoint_is_dump}"
+        )
+
         # Validate endpoint based on whether it's a dump URL or SPARQL endpoint
-        if is_dump_url:
-            # For data dump URLs, use general URL validation
-            is_valid, error_message = helper_methods.validate_url(kg_endpoint)
+        if endpoint_is_dump:
+            # For data dump URLs, only validate format — skip live reachability
+            # check since dump hosts (e.g. government portals) often block cloud IPs.
+            is_valid, error_message = helper_methods.validate_url(kg_endpoint, format_only=True)
             if not is_valid:
                 return JSONResponse(
                     {
@@ -366,8 +374,8 @@ async def submit_query(
                     status_code=400,
                 )
 
-        # Only validate SPARQL query if it's provided and not a dump URL
-        if sparql_query and sparql_query.strip() and not is_dump_url:
+        # Only validate SPARQL query if it's provided and not a dump endpoint
+        if sparql_query and sparql_query.strip() and not endpoint_is_dump:
             if not helper_methods.validate_sparql_query(sparql_query):
                 return JSONResponse(
                     {"status": "error", "message": "Invalid SPARQL query"},
@@ -402,7 +410,7 @@ async def submit_query(
                 kg_endpoint,
                 kg_about_page.strip(),
                 domains,
-                is_dump_url,
+                endpoint_is_dump,
             )
 
         if source and source.strip():
@@ -453,7 +461,7 @@ async def validate_endpoint(
         endpoint_url = endpoint_url.strip()
 
         if is_dump_url:
-            is_valid, error_message = helper_methods.validate_url(endpoint_url)
+            is_valid, error_message = helper_methods.validate_url(endpoint_url, format_only=True)
 
             if is_valid:
                 return JSONResponse(
@@ -522,8 +530,15 @@ async def validate_query(
             )
 
         kg_metadata = database.get_all_kg_metadata(for_one=True, endpoint=endpoint_url)
+        logging.info(
+            f"kg_metadata found: {kg_metadata is not None}, is_dump: {kg_metadata.get('is_dump') if kg_metadata else 'N/A'} for endpoint: {endpoint_url}"
+        )
         if kg_metadata and kg_metadata.get("is_dump"):
+            logging.info(
+                f"Endpoint marked as dump, performing syntax validation only (no query execution)"
+            )
             if not helper_methods.validate_sparql_query(sparql_query.strip()):
+                logging.info(f"Query syntax validation failed for dump endpoint")
                 return JSONResponse(
                     {
                         "status": "error",
@@ -532,6 +547,9 @@ async def validate_query(
                     status_code=400,
                 )
             else:
+                logging.info(
+                    f"Query syntax validation passed for dump endpoint, returning early (no execution)"
+                )
                 return JSONResponse(
                     {
                         "status": "success",
