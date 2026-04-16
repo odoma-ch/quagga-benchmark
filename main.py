@@ -119,6 +119,7 @@ async def read_root(request: Request):
     current_month = datetime.now().strftime("%B")
     kg_metadata = database.get_all_kg_metadata()
     if not user:
+        request.session["redirect_after_login"] = "/contribute"
         return RedirectResponse(url="/login")
     return templates.TemplateResponse(
         "contribute.html",
@@ -199,7 +200,8 @@ async def auth_github(request: Request):
         request.session["type"] = "github"
         request.session["user"] = user
 
-        return RedirectResponse(url="/contribute")
+        redirect_url = request.session.pop("redirect_after_login", "/contribute")
+        return RedirectResponse(url=redirect_url)
     except Exception as e:
         logging.error(f"Authentication error: {str(e)}")
         return {"error": str(e)}
@@ -268,7 +270,8 @@ async def auth_operasid(request: Request):
         request.session["type"] = "operas"
         request.session["user"] = user
 
-        return RedirectResponse(url="/contribute")
+        redirect_url = request.session.pop("redirect_after_login", "/contribute")
+        return RedirectResponse(url=redirect_url)
     except Exception as e:
         logging.error(f"Authentication error in OPERAS: {str(e)}")
         return {"error": str(e)}
@@ -315,7 +318,8 @@ async def auth_orcid(request: Request):
             "avatar_url"
         ] = f'https://ui-avatars.com/api/?name={request.session["user"]["login"]}&background=0D8ABC&color=fff&rounded=true'
 
-        return RedirectResponse(url="/contribute")
+        redirect_url = request.session.pop("redirect_after_login", "/contribute")
+        return RedirectResponse(url=redirect_url)
     except Exception as e:
         logging.error(f"Authentication error: {str(e)}")
         return {"error": str(e)}
@@ -705,10 +709,12 @@ async def modify_db_submission(
 async def agent_page(request: Request):
     user = request.session.get("user")
     if not user:
+        request.session["redirect_after_login"] = "/agent"
         return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
 
     email = user.get("email") or user.get("login")
     if not email:
+        request.session["redirect_after_login"] = "/agent"
         return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
 
     CHAT_UI_HOST = "quagga-agent.graphia-ssh.eu"
