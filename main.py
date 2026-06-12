@@ -705,6 +705,12 @@ async def modify_db_submission(
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
+@app.get("/chat")
+async def chat_page(request: Request):
+    user = request.session.get("user")
+    return templates.TemplateResponse("chat.html", {"request": request, "user": user})
+
+
 @app.get("/agent")
 async def agent_page(request: Request):
     user = request.session.get("user")

@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href='https://fonts.googleapis.com/css?family=Outfit:300,400,500,600,700&display=swap' rel='stylesheet'>
+    <title>Quagga - Chat</title>
+    <style>
+        :root {
+            --primary: #f26558;
+            --secondary: #b34a41;
+            --white: #f2f2f2;
+            --light-gray: #f2f2f2;
+            --dark-gray: #666666;
+            --accent: #9c9c9c;
+            --error: #f7931e;
+            --footer: #cacaca;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background: var(--light-gray);
+            color: var(--dark-gray);
+            line-height: 1.6;
+            min-height: 100vh;
+            margin: 0;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 clamp(15px, 4vw, 40px);
+        }
+
+        .top-nav {
+            background: var(--light-gray);
+            padding: clamp(10px, 3vw, 20px) 0;
+            margin-bottom: clamp(15px, 4vw, 30px);
+        }
+
+        .nav-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            text-decoration: none;
+            flex-shrink: 0;
+            padding: 0;
+        }
+
+        .logo img {
+            height: clamp(40px, 8vw, 70px);
+            width: auto;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: clamp(20px, 5vw, 50px);
+            align-items: center;
+            justify-content: flex-end;
+            flex: 1;
+            padding: 0 0 0 clamp(30px, 5vw, 60px);
+        }
+
+        .nav-link {
+            color: var(--dark-gray);
+            text-decoration: none;
+            font-weight: 300;
+            font-size: clamp(1.1rem, 3.2vw, 1.5rem);
+            transition: all 0.3s ease;
+            position: relative;
+            padding: clamp(6px, 1.5vw, 10px) clamp(10px, 2.5vw, 18px);
+            border-radius: 0;
+        }
+
+        .nav-link:hover {
+            color: var(--primary);
+            background: rgba(242, 101, 88, 0.1);
+            text-decoration: none;
+        }
+
+        .nav-link.active {
+            color: var(--primary);
+            background: transparent;
+            box-shadow: none;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--primary);
+            cursor: pointer;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-100%);
+            }
+        }
+
+        .main-content {
+            padding: 40px 20px;
+            flex: 1 0 auto;
+        }
+
+        .chat-section {
+            background: var(--white);
+            border-radius: 20px;
+            padding: clamp(40px, 8vw, 80px) clamp(30px, 6vw, 60px);
+            margin-bottom: 35px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .chat-title {
+            font-size: clamp(2rem, 5vw, 2.8rem);
+            font-weight: 500;
+            color: var(--primary);
+            margin-bottom: 30px;
+            letter-spacing: -0.02em;
+        }
+
+        .chat-text {
+            font-size: clamp(1rem, 2.5vw, 1.2rem);
+            line-height: 1.8;
+            color: var(--dark-gray);
+            margin-bottom: 20px;
+            font-weight: 400;
+        }
+
+        .chat-note {
+            font-size: clamp(0.85rem, 2vw, 0.95rem);
+            line-height: 1.7;
+            color: var(--accent);
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .chat-cta {
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        .chat-btn {
+            display: inline-block;
+            background: var(--primary);
+            color: var(--white);
+            text-decoration: none;
+            padding: clamp(14px, 3vw, 18px) clamp(30px, 5vw, 50px);
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: clamp(1rem, 2.5vw, 1.1rem);
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(242, 101, 88, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chat-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .chat-btn:hover::before {
+            left: 100%;
+        }
+
+        .chat-btn:hover {
+            background: var(--secondary);
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(179, 74, 65, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .nav-menu {
+                display: none;
+            }
+
+            .mobile-menu-toggle {
+                display: block;
+            }
+
+            .nav-menu.mobile-open {
+                display: flex !important;
+                flex-direction: column;
+                position: fixed;
+                top: 80px;
+                left: 0;
+                right: 0;
+                background: var(--light-gray);
+                padding: 20px;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                z-index: 9999;
+                animation: slideDown 0.3s ease-out;
+                max-height: calc(100vh - 80px);
+                overflow-y: auto;
+            }
+
+            .nav-menu.mobile-open .nav-link {
+                padding: 12px 0;
+                border-bottom: 1px solid rgba(0,0,0,0.1);
+            }
+
+            .nav-menu.mobile-open .nav-link:last-child {
+                border-bottom: none;
+            }
+
+            .chat-section {
+                padding: 30px 20px;
+            }
+        }
+
+        @supports (-webkit-appearance: none) {
+            .main-content {
+                -webkit-transform: translateZ(0);
+                transform: translateZ(0);
+            }
+
+            footer {
+                -webkit-transform: translateZ(0);
+                transform: translateZ(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div style="position: absolute; top: 20px; right: 20px; z-index: 1001;">
+        {% if user %}
+            <span style="color: var(--dark-gray); font-size: clamp(0.9rem, 2.5vw, 1.2rem);">{{ user.login }} | </span>
+            <a href="/logout" style="color: var(--primary); text-decoration: none; font-size: clamp(0.9rem, 2.5vw, 1.2rem);">Logout</a>
+        {% else %}
+            <a href="/login" style="color: var(--primary); text-decoration: none; font-size: clamp(0.9rem, 2.5vw, 1.2rem);">Login</a>
+        {% endif %}
+    </div>
+
+    <div class="main-content">
+        <div class="container">
+            <nav class="top-nav">
+                <div class="nav-content">
+                    <a href="/home" class="logo">
+                        <img src="/templates/assets/Logo-Quagga.svg" alt="Quagga" />
+                    </a>
+
+                    <div class="nav-menu">
+                        <a href="/home" class="nav-link">Home</a>
+                        <a href="/contribute" class="nav-link">Contribute</a>
+                        <a href="/browse" class="nav-link">Browse</a>
+                        <a href="/chat" class="nav-link active">Chat</a>
+                        <a href="/faq" class="nav-link">FAQ</a>
+                    </div>
+
+                    <button class="mobile-menu-toggle">&#9776;</button>
+                </div>
+            </nav>
+        </div>
+
+        <div class="container">
+            <div class="chat-section">
+                <h1 class="chat-title">Chat with Quagga</h1>
+
+                <p class="chat-text">
+                    Want to explore a knowledge graph without writing a single query? The Quagga agent lets you ask questions in plain language and handles the SPARQL for you: it translates your question into a query, runs it, and brings back an answer.
+                </p>
+
+                <p class="chat-text">
+                    Transparency is built in. Rather than hiding the technical machinery, the agent shows you the SPARQL query behind every answer, so you can inspect it, verify it, and learn from it. The goal isn't to replace SPARQL, but to lower the barrier to entry while helping you understand how knowledge graphs are queried.
+                </p>
+
+                <p class="chat-note">
+                    <strong>Note:</strong> the Quagga agent is in early development (alpha) and we're actively working to expand its capabilities. You may encounter rough edges, and for now the agent can only query one knowledge graph at a time. Not all knowledge graphs in the Quagga benchmark are available in the agent yet, but we're gradually enabling new ones.
+                </p>
+
+                <div class="chat-cta">
+                    <a href="/agent" class="chat-btn">Start chatting &rarr;</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer style="background: var(--footer); padding: 30px 0; color: var(--dark-gray); margin-top: 50px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; max-width: 1200px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 50px); flex-wrap: wrap; gap: 20px;">
+            <div style="display: flex; flex-direction: column; gap: 15px; flex: 1; min-width: 250px;">
+                <img src="/templates/assets/footer_logos.svg" alt="Odoma and Graphia logos" style="max-width: clamp(150px, 20vw, 280px); height: auto;" />
+                <div>
+                    <p style="font-size: clamp(0.7rem, 1.8vw, 1rem); margin-bottom: clamp(4px, 1.2vw, 10px); line-height: 1.4; margin: 0;">Quagga has been developed by <a href="https://www.odoma.ch/" target="_blank" style="color: var(--primary); text-decoration: none;">Odoma &nearr;</a> for <a href="https://graphia-ssh.eu/" target="_blank" style="color: var(--primary); text-decoration: none;">Graphia &nearr;</a></p>
+                    <p style="font-size: clamp(0.7rem, 1.8vw, 1rem); line-height: 1.4; margin: 0;">Funded by the European Union (grant ID: <a href="https://cordis.europa.eu/project/id/101188018" target="_blank" style="color: var(--primary); text-decoration: none;">101188018 &nearr;</a>)</p>
+                    <p style="font-size: clamp(0.7rem, 1.8vw, 1rem); line-height: 1.4; margin: 0;">and by the Swiss State Secretariat for Education, Research and Innovation (SERI).</p>
+                </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: clamp(4px, 1.2vw, 10px); font-size: clamp(0.7rem, 1.8vw, 1rem); align-self: flex-start;">
+                <a href="mailto:graphia@odoma.ch" style="color: var(--primary); text-decoration: none;">Contact</a>
+                <a href="https://github.com/odoma-ch/quagga/issues" target="_blank" style="color: var(--primary); text-decoration: none;">Github</a>
+                <a href="/faq" style="color: var(--primary); text-decoration: none;">FAQ</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        var _paq = window._paq = window._paq || [];
+        _paq.push(['setDocumentTitle', 'Quagga Chat']);
+        _paq.push(['trackPageView']);
+        _paq.push(['enableLinkTracking']);
+        (function() {
+            var u="https://analytics.operas-eu.org/";
+            _paq.push(['setTrackerUrl', u+'matomo.php']);
+            _paq.push(['setSiteId', '13']);
+            var d=document, g=d.createElement('script'),
+        s=d.getElementsByTagName('script')[0];
+            g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+        })();
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileToggle = document.querySelector('.mobile-menu-toggle');
+            const navMenu = document.querySelector('.nav-menu');
+
+            if (mobileToggle && navMenu) {
+                mobileToggle.addEventListener('click', function() {
+                    navMenu.classList.toggle('mobile-open');
+                });
+
+                const navLinks = navMenu.querySelectorAll('.nav-link');
+                navLinks.forEach(link => {
+                    link.addEventListener('click', function() {
+                        if (navMenu.classList.contains('mobile-open')) {
+                            navMenu.style.animation = 'slideUp 0.2s ease-out';
+                            setTimeout(() => {
+                                navMenu.classList.remove('mobile-open');
+                                navMenu.style.animation = '';
+                            }, 200);
+                        }
+                    });
+                });
+
+                document.addEventListener('click', function(event) {
+                    if (navMenu.classList.contains('mobile-open') && !navMenu.contains(event.target) && !mobileToggle.contains(event.target)) {
+                        navMenu.style.animation = 'slideUp 0.2s ease-out';
+                        setTimeout(() => {
+                            navMenu.classList.remove('mobile-open');
+                            navMenu.style.animation = '';
+                        }, 200);
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
